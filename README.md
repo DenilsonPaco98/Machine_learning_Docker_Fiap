@@ -121,3 +121,4 @@ Notes:
 dvc init
 dvc repro
 ```
+Segue aquitetura composta abaixo:
