@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "ecommerce-ml"
+version = "0.1.0"
+description = "Tech Challenge - Propensão de compra em e-commerce"
+authors = ["Seu Nome <seu@email.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+scikit-learn = "^1.5.2"
+mlflow = "^2.14.0"
+pandas = "^2.2.3"
+joblib = "^1.4.2"
+python-dotenv = "^1.0.1"
+kagglehub = "^0.3.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.8.0"
+ruff = "^0.6.0"
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

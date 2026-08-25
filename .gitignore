@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+*.log
+
+# DVC
+.dvc/cache/
+.dvc/tmp/
+.dvc/config.local
+
+# MLflow artifacts
+mlruns/
+mlartifacts/
+artifacts/
+
+# Model artifacts
+models/*.pkl
+models/*.joblib

@@ -1,0 +1,31 @@
+version: "3.8"
+services:
+  mlflow:
+    image: python:3.11-slim
+    container_name: mlflow-server
+    working_dir: /mlflow
+    volumes:
+      - ./mlruns:/mlflow
+      - ./mlflow_artifacts:/mlflow/artifacts
+    ports:
+      - "8080:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: bash -lc "pip install --no-cache-dir mlflow && mlflow server --host 0.0.0.0 --port 8080 --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow/artifacts"
+
+  app:
+    build: .
+    container_name: ecommerce-trainer
+    working_dir: /app
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:8080
+    depends_on:
+      - mlflow
+    command: bash -lc "poetry run python src/ecommerce_ml/train.py"
+    volumes:
+      - .:/app
+
+# Notes:
+# - mlflow stores backend in sqlite file `mlflow.db` inside container (persisted to ./mlruns)
+# - app service points `MLFLOW_TRACKING_URI` to the mlflow service by name
+# - Adjust volumes and storage for production (S3, PostgreSQL, etc.)
