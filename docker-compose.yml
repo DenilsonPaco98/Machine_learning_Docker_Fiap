@@ -5,13 +5,19 @@ services:
     container_name: mlflow-server
     working_dir: /mlflow
     volumes:
-      - ./mlruns:/mlflow
-      - ./mlflow_artifacts:/mlflow/artifacts
+      - ./mlflow/db:/mlflow/db
+      - ./mlflow/artifacts:/mlflow/artifacts
     ports:
       - "8080:8080"
     environment:
       - PYTHONUNBUFFERED=1
-    command: bash -lc "pip install --no-cache-dir mlflow && mlflow server --host 0.0.0.0 --port 8080 --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow/artifacts"
+    command: sh -lc "pip install --no-cache-dir mlflow && mlflow server --host 0.0.0.0 --port 8080 --backend-store-uri sqlite:////mlflow/db/mlflow.db --default-artifact-root /mlflow/artifacts"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   app:
     build: .
@@ -20,12 +26,17 @@ services:
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:8080
     depends_on:
-      - mlflow
-    command: bash -lc "poetry run python src/ecommerce_ml/train.py"
+      mlflow:
+        condition: service_healthy
+    command: sh -lc "poetry run python src/ecommerce_ml/train.py"
     volumes:
       - .:/app
+      - ./mlflow/artifacts:/mlflow/artifacts:ro
 
 # Notes:
-# - mlflow stores backend in sqlite file `mlflow.db` inside container (persisted to ./mlruns)
-# - app service points `MLFLOW_TRACKING_URI` to the mlflow service by name
-# - Adjust volumes and storage for production (S3, PostgreSQL, etc.)
+# - mlflow backend DB persisted to host at ./mlflow/db/mlflow.db
+# - artifacts persisted to host at ./mlflow/artifacts
+# - App points `MLFLOW_TRACKING_URI` to the `mlflow` service (http://mlflow:8080)
+# - When you build an image with `docker build .`, any files under ./mlflow/artifacts
+#   in the repo will be included in the image context and can be copied into the image
+#   allowing reuse of model artifacts in images.

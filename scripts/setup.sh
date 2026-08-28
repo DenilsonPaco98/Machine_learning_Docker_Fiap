@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Universal Git Bash setup: create .venv and install dependencies from requirements.txt
+# Universal Git Bash setup with Poetry
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-if [ ! -f requirements.txt ]; then
-  echo "requirements.txt not found in project root"
+if [ ! -f pyproject.toml ]; then
+  echo "pyproject.toml not found in project root"
   exit 1
 fi
 
@@ -25,10 +25,19 @@ if [ ! -f "$VENV_PY" ]; then
   VENV_PIP=".venv/Scripts/pip.exe"
 fi
 
-echo "Upgrading pip and installing requirements..."
+echo "Installing Poetry into project venv..."
 "$VENV_PIP" install --upgrade pip
-"$VENV_PIP" install -r requirements.txt
+"$VENV_PIP" install poetry
+
+POETRY_BIN=".venv/bin/poetry"
+if [ ! -f "$POETRY_BIN" ]; then
+  POETRY_BIN=".venv/Scripts/poetry.exe"
+fi
+
+echo "Configuring Poetry to use in-project virtualenv and installing dependencies..."
+"$POETRY_BIN" config virtualenvs.in-project true --local
+"$POETRY_BIN" install --with dev --no-interaction
 
 echo "Setup complete. To run in Git Bash:" 
-echo "  source .venv/bin/activate  # or .venv/Scripts/activate on Windows cmd"
-echo "  ./scripts/run_train.sh"
+echo "  $POETRY_BIN run python src/ecommerce_ml/train.py"
+echo "  $POETRY_BIN run dvc repro"

@@ -12,7 +12,8 @@ Usage (PowerShell):
 
 $ErrorActionPreference = 'Stop'
 
-$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$projectRoot = Split-Path -Parent $scriptDir
 Set-Location $projectRoot
 
 Write-Host "Project root: $projectRoot"
@@ -41,10 +42,10 @@ if (-not (Test-Path $poetryExe)) {
 }
 
 Write-Host "Configuring poetry to create venvs inside project..."
-& $poetryCmd config virtualenvs.in-project true
+& $poetryCmd config virtualenvs.in-project true --local
 
 Write-Host "Running 'poetry install' to install project dependencies..."
-& $poetryCmd install --no-interaction
+& $poetryCmd install --with dev --no-interaction
 
 Write-Host "Setup complete. To run training using the venv-poetry combo, use:" -ForegroundColor Green
 Write-Host "  .\.venv\Scripts\poetry.exe run python src\ecommerce_ml\train.py" -ForegroundColor Cyan

@@ -1,124 +1,168 @@
 # Tech Challenge - E-commerce Purchase Propensity
 
+Projeto de engenharia de Machine Learning para previsão de propensão de compra em e-commerce, com pipeline reproduzível usando Scikit-Learn, DVC, MLflow, Poetry e Docker.
+
 ## Objetivo
 
-Treinar um modelo clássico de classificação para prever a propensão de compra de usuários de e-commerce usando um pipeline reproducível com Docker, DVC e MLflow.
+Treinar e registrar um modelo clássico de classificação (RandomForest) com rastreabilidade de experimentos e versionamento de dados.
 
 ## Estrutura do projeto
 
-- `src/ecommerce_ml/`: código principal
+- `src/ecommerce_ml/`: código da aplicação e pipeline
 - `data/`: dados brutos e processados
-- `models/`: artefatos do modelo
-- `tests/`: testes
-- `pyproject.toml`: dependências e configuração do Poetry
-- `dvc.yaml`: pipeline do DVC
-- `Dockerfile`: container do projeto
+- `models/`: modelos serializados
+- `artifacts/`: relatórios e figuras geradas no treino
+- `tests/`: testes unitários
+- `scripts/`: automações de setup e execução
+- `dvc.yaml`: definição do pipeline DVC
+- `docker-compose.yml`: MLflow + app com persistência
 
 ## Requisitos
 
-- Python 3.11
+- Python 3.11+
 - Poetry
-- Docker
-- DVC
+- Docker (opcional, para execução containerizada)
 
-## Instalação
+## Setup rápido (Poetry)
 
-```bash
-poetry install
-```
-
-Git Bash / Unix (recommended):
-
-1. Execute o script de bootstrap (criará `.venv` e instalará dependências via `pip`):
+### Linux / macOS / Git Bash
 
 ```bash
 ./scripts/setup.sh
 ```
 
-2. Rodar o pipeline DVC (reproduzir stages):
-
-```bash
-./scripts/run_repro.sh
-```
-
-3. Rodar o treino:
-
-```bash
-./scripts/run_train.sh
-```
-
-Windows PowerShell (alternative):
+### Windows PowerShell
 
 ```powershell
 .\scripts\setup_poetry.ps1
-#.\.venv\Scripts\poetry.exe run python src\ecommerce_ml\train.py
 ```
+
+### Instalação manual equivalente
+
+```bash
+poetry install --with dev
+```
+
+O projeto usa `poetry.lock` para reprodutibilidade de dependências.
 
 ## Variáveis de ambiente
 
-Copie o arquivo de exemplo:
+Copie e ajuste o template:
 
 ```bash
 cp .env.example .env
 ```
 
-## MLflow
+Variável principal:
 
-Inicie o servidor local:
+- `MLFLOW_TRACKING_URI` (default no código: `http://127.0.0.1:8080`)
+
+## Executar pipeline local (sem Docker)
+
+### 1) Rodar o pipeline DVC
 
 ```bash
-mlflow server --host 127.0.0.1 --port 8080
+./scripts/run_repro.sh
 ```
 
-Nota: antes de executar os scripts de treino, certifique-se de que o MLflow server está rodando no host/porta configurados em `src/ecommerce_ml/config.py` (`settings.mlflow_tracking_uri`). Se o servidor estiver em outra porta, atualize `MLFLOW_TRACKING_URI` no `.env` ou em `settings`.
-
-## Execução
+### 2) Rodar treino diretamente
 
 ```bash
+./scripts/run_train.sh
+```
+
+Ou com Poetry explicitamente:
+
+```bash
+poetry run dvc repro
 poetry run python src/ecommerce_ml/train.py
 ```
 
-Descrição da construção do modelo
- - Pipeline de features: `SimpleImputer` (mediana) + `StandardScaler` aplicado às features numéricas e encoding/transformações mínimas para categóricas.
- - Modelo: `RandomForestClassifier(n_estimators=100)` encapsulado em um `sklearn` `Pipeline` que combina o pré-processamento e o estimador.
- - Saídas: `models/random_forest.joblib` (joblib do pipeline treinado), artefatos de métricas em `artifacts/` e o modelo registrado no MLflow como um `pyfunc` model (`artifact_path=random_forest_model`).
+## MLflow local
 
-Boas práticas:
- - Reproduzibilidade: use o `.env` para configurar `MLFLOW_TRACKING_URI`, seeds e caminhos de dados.
- - Registro: o script salva o joblib e registra um `pyfunc` no MLflow para evitar problemas de serialização com skops.
-
-Validação rápida do projeto
- - Rode `./scripts/run_repro.sh` para reproduzir todo o pipeline DVC (download → preprocess → train).
- - Verifique o run no MLflow UI (ex.: `http://127.0.0.1:8080`) e confirme que `random_forest_model` aparece na lista de artifacts e que a seção Datasets está preenchida.
-
-## Docker
+Suba o servidor MLflow no host:
 
 ```bash
-docker build -t ecommerce-ml .
-docker run --rm ecommerce-ml
+poetry run mlflow server --host 127.0.0.1 --port 8080
 ```
 
-Docker + MLflow (recommended)
+Depois acesse:
 
-Use `docker-compose` to run an MLflow server and the training container locally. This `docker-compose.yml` starts:
-- a lightweight `mlflow` server (SQLite backend + local artifact root)
-- the `app` service that runs the training script and registers the model
+- `http://127.0.0.1:8080`
 
-Run:
+O treino registra parâmetros, métricas, artifacts e modelo no MLflow.
+
+## Docker + MLflow com persistência (recomendado)
+
+O `docker-compose.yml` sobe:
+
+- `mlflow`: servidor MLflow
+- `app`: container de treino
+
+Com persistência em disco local:
+
+- `./mlflow/db` -> banco SQLite do MLflow
+- `./mlflow/artifacts` -> artifacts/runs/modelos
+
+### Subir ambiente
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
-Notes:
-- The compose setup mounts `./mlruns` and `./mlflow_artifacts` so MLflow runs and artifacts persist on the host.
-- The `app` service sets `MLFLOW_TRACKING_URI=http://mlflow:8080` so the training script talks to the MLflow server inside the compose network. Ensure `src/ecommerce_ml/config.py` respects this env var (it does).
-- For production, replace the SQLite backend and local artifact root with a proper DB (Postgres) and object storage (S3) — update `docker-compose.yml` accordingly.
+### Ver logs do MLflow
+
+```bash
+docker compose logs -f mlflow
+```
+
+### Executar um novo treino (adiciona novo run persistido)
+
+```bash
+docker compose run --rm app
+```
+
+### Rebuild de imagem reutilizando artifacts já persistidos
+
+```bash
+./scripts/build_image_with_runs.sh
+```
+
+PowerShell:
+
+```powershell
+.\scripts\build_image_with_runs.ps1
+```
 
 ## DVC
 
+Pipeline definido em `dvc.yaml` com estágios:
+
+- `download_data`
+- `preprocess`
+- `train`
+
+Comandos úteis:
+
 ```bash
-dvc init
-dvc repro
+poetry run dvc repro
+poetry run dvc status
 ```
-Segue aquitetura composta abaixo:
+
+## Modelo e outputs
+
+- Modelo principal: `RandomForestClassifier(n_estimators=100, random_state=42)`
+- Pipeline de features: imputação (`SimpleImputer`) + escala (`StandardScaler`)
+- Modelo salvo em: `models/random_forest.joblib`
+- Artefatos principais: `artifacts/classification_report.json` e `artifacts/confusion_matrix.png`
+
+## Testes
+
+```bash
+poetry run pytest -q
+```
+
+## Relatórios
+
+- `reports/pipeline_analysis.html`
+- `reports/tech_challenge_fase2_validacao.html`
