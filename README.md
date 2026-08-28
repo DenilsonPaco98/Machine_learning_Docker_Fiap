@@ -161,8 +161,4 @@ poetry run dvc status
 ```bash
 poetry run pytest -q
 ```
-
-## Relatórios
-
-- `reports/pipeline_analysis.html`
-- `reports/tech_challenge_fase2_validacao.html`
+## Arquitetura Alvo
