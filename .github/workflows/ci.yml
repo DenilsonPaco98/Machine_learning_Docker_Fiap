@@ -5,7 +5,12 @@ on:
     branches:
       - main
       - master
+      - develop
   pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   test:
@@ -47,3 +52,48 @@ jobs:
         with:
           name: pytest-report
           path: pytest-report.xml
+
+  open-pr-develop-to-main:
+    name: Open PR develop -> main on CI success
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref_name == 'develop' && needs.test.result == 'success'
+    steps:
+      - name: Create PR if missing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const head = 'develop';
+            const base = 'main';
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              head: `${owner}:${head}`,
+              base,
+            });
+
+            if (prs.length > 0) {
+              core.info(`PR already open: #${prs[0].number} ${prs[0].html_url}`);
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.create({
+              owner,
+              repo,
+              title: 'chore: merge develop into main',
+              head,
+              base,
+              body: [
+                'PR criada automaticamente apos sucesso do workflow de CI.',
+                '',
+                '- Branch origem: `develop`',
+                '- Branch destino: `main`',
+                '- Condicao: testes passaram no workflow `CI - Pytest`',
+              ].join('\n'),
+            });
+
+            core.info(`PR created: #${pr.number} ${pr.html_url}`);
